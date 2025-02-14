@@ -11,6 +11,10 @@ interface Point {
   strokeId: number;
 }
 
+interface TouchWithForce extends Touch {
+  force: number;
+}
+
 interface SignatureDrawingCanvasProps {
   onChange?: (signatureData: string) => void;
   width?: number;
@@ -137,7 +141,7 @@ export default function SignatureDrawingCanvas({
     if ('pressure' in e) {
       pressure = (e as PointerEvent).pressure || 0.5;
     } else if ('touches' in e && e.touches[0] && 'force' in e.touches[0]) {
-      pressure = (e.touches[0] as any).force || 0.5;
+      pressure = ((e.touches[0] as TouchWithForce).force) || 0.5;
     }
     
     return {

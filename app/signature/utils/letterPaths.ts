@@ -12,9 +12,6 @@ const createFlowingCurve = (points: Point[], style: LetterStyle, letterHeight: n
 
   let path = `M ${points[0].x} ${points[0].y}`;
   
-  // Use a single continuous curve for more natural flow
-  const controlPoints: Point[] = [];
-  
   for (let i = 0; i < points.length - 1; i++) {
     const current = points[i];
     const next = points[i + 1];
@@ -22,9 +19,9 @@ const createFlowingCurve = (points: Point[], style: LetterStyle, letterHeight: n
     const dy = next.y - current.y;
     
     // Calculate control points with more horizontal flow
-    let cp1x = current.x + dx * 0.5;
+    const cp1x = current.x + dx * 0.5;
     let cp1y = current.y;
-    let cp2x = next.x - dx * 0.2;
+    const cp2x = next.x - dx * 0.2;
     let cp2y = next.y;
     
     // Add natural variation based on style
@@ -175,6 +172,7 @@ export const generateSignaturePoints = (
   return points;
 };
 
+// Export only the functions we're using
 export const generateSignaturePath = (
   text: string,
   startX: number,

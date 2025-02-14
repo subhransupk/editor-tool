@@ -1,8 +1,3 @@
-interface Point {
-  x: number;
-  y: number;
-}
-
 type SignatureStyle = 'formal' | 'casual' | 'artistic' | 'minimalist';
 
 // Generate a sharp peak with a valley
@@ -35,11 +30,6 @@ const generateSharpPeak = (
       
     default:
       // Sharp peak with slight curve in valley
-      const upControl = {
-        x: startX + peakWidth * 0.2,
-        y: startY - peakHeight * 0.3
-      };
-      
       const downControl = {
         x: peakX + peakWidth * 0.2,
         y: peakY + peakHeight * 0.2
