@@ -17,22 +17,17 @@ interface TouchWithForce extends Touch {
 
 interface SignatureDrawingCanvasProps {
   onChange?: (signatureData: string) => void;
-  width?: number;
-  height?: number;
   lineColor?: string;
   lineWidth?: number;
 }
 
 export default function SignatureDrawingCanvas({
   onChange,
-  width = 800,
-  height = 200,
   lineColor = '#000000',
   lineWidth = 2,
 }: SignatureDrawingCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [isDrawing, setIsDrawing] = useState(false);
   const [lastPoint, setLastPoint] = useState<Point | null>(null);
   const [points, setPoints] = useState<Point[]>([]);
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -236,7 +231,6 @@ export default function SignatureDrawingCanvas({
       if (!point) return;
 
       isDrawingRef.current = true;
-      setIsDrawing(true);
       setLastPoint(point);
       setPoints(prev => [...prev, point]);
     } catch (error) {
@@ -271,7 +265,6 @@ export default function SignatureDrawingCanvas({
   const handleEnd = useCallback(() => {
     try {
       isDrawingRef.current = false;
-      setIsDrawing(false);
       setLastPoint(null);
 
       const canvas = canvasRef.current;
@@ -291,8 +284,6 @@ export default function SignatureDrawingCanvas({
       if (!isFullScreen) {
         setPoints([]);
         setLastPoint(null);
-        setIsDrawing(false);
-        isDrawingRef.current = false;
         if (onChange) {
           onChange('');
         }
@@ -313,8 +304,6 @@ export default function SignatureDrawingCanvas({
     try {
       setPoints([]);
       setLastPoint(null);
-      setIsDrawing(false);
-      isDrawingRef.current = false;
       if (onChange) {
         onChange('');
       }
