@@ -34,11 +34,54 @@ export default function SignatureDrawingCanvas({
   const currentStrokeId = useRef(0);
   const smoothingFactorRef = useRef(0.85);
   const isDrawingRef = useRef(false);
-  const lastPointsRef = useRef<Point[]>([]);
   const pathBuffer = useRef<Point[]>([]);
 
+  // Calculate velocity between two points
+  const calculateVelocity = useCallback((p1: Point, p2: Point): number => {
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    const timeDiff = p2.timestamp - p1.timestamp;
+    return distance / (timeDiff || 1);
+  }, []);
+
+  // Enhanced draw stroke function
+  const drawStroke = useCallback((ctx: CanvasRenderingContext2D, points: Point[], baseWidth: number) => {
+    if (points.length < 2) return;
+
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+
+    // Enhanced curve drawing
+    for (let i = 1; i < points.length - 2; i++) {
+      const p1 = points[i];
+      const p2 = points[i + 1];
+      
+      const velocity = calculateVelocity(p1, p2);
+      const velocityFactor = Math.max(0.3, 1 - velocity * 0.02); // Adjusted velocity impact
+      const pressureFactor = (p1.pressure + p2.pressure) / 2;
+      
+      // Smoother line width transitions
+      ctx.lineWidth = baseWidth * pressureFactor * velocityFactor;
+
+      // Use quadratic curves for smoother connections
+      const xc = (p1.x + p2.x) / 2;
+      const yc = (p1.y + p2.y) / 2;
+      ctx.quadraticCurveTo(p1.x, p1.y, xc, yc);
+    }
+
+    // Handle the last two points
+    if (points.length >= 2) {
+      const last = points[points.length - 1];
+      const secondLast = points[points.length - 2];
+      ctx.quadraticCurveTo(secondLast.x, secondLast.y, last.x, last.y);
+    }
+
+    ctx.stroke();
+  }, [calculateVelocity]);
+
   // Enhanced path optimization
-  const optimizePath = (points: Point[]): Point[] => {
+  const optimizePath = useCallback((points: Point[]): Point[] => {
     if (points.length < 3) return points;
 
     const result: Point[] = [points[0]];
@@ -69,10 +112,10 @@ export default function SignatureDrawingCanvas({
 
     result.push(points[points.length - 1]);
     return result;
-  };
+  }, []);
 
   // Enhanced smoothing function using advanced Bezier curves
-  const smoothPoints = (points: Point[]): Point[] => {
+  const smoothPoints = useCallback((points: Point[]): Point[] => {
     if (points.length < 3) return points;
 
     // First optimize the path
@@ -126,7 +169,7 @@ export default function SignatureDrawingCanvas({
 
     smoothed.push(optimizedPoints[optimizedPoints.length - 1]);
     return smoothed;
-  };
+  }, [optimizePath]);
 
   // Enhanced redraw function
   const redrawCanvas = useCallback(() => {
@@ -187,7 +230,7 @@ export default function SignatureDrawingCanvas({
     } catch (error) {
       console.error('Error drawing on canvas:', error);
     }
-  }, [points, lineColor, lineWidth, onChange]);
+  }, [points, lineColor, lineWidth, onChange, drawStroke, smoothPoints]);
 
   // Enhanced handle move function with path buffering
   const handleMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
@@ -220,42 +263,7 @@ export default function SignatureDrawingCanvas({
     } catch (error) {
       console.error('Error during drawing:', error);
     }
-  }, [lastPoint]);
-
-  // Enhanced draw stroke function
-  const drawStroke = (ctx: CanvasRenderingContext2D, points: Point[], baseWidth: number) => {
-    if (points.length < 2) return;
-
-    ctx.beginPath();
-    ctx.moveTo(points[0].x, points[0].y);
-
-    // Enhanced curve drawing
-    for (let i = 1; i < points.length - 2; i++) {
-      const p1 = points[i];
-      const p2 = points[i + 1];
-      
-      const velocity = calculateVelocity(p1, p2);
-      const velocityFactor = Math.max(0.3, 1 - velocity * 0.02); // Adjusted velocity impact
-      const pressureFactor = (p1.pressure + p2.pressure) / 2;
-      
-      // Smoother line width transitions
-      ctx.lineWidth = baseWidth * pressureFactor * velocityFactor;
-
-      // Use quadratic curves for smoother connections
-      const xc = (p1.x + p2.x) / 2;
-      const yc = (p1.y + p2.y) / 2;
-      ctx.quadraticCurveTo(p1.x, p1.y, xc, yc);
-    }
-
-    // Handle the last two points
-    if (points.length >= 2) {
-      const last = points[points.length - 1];
-      const secondLast = points[points.length - 2];
-      ctx.quadraticCurveTo(secondLast.x, secondLast.y, last.x, last.y);
-    }
-
-    ctx.stroke();
-  };
+  }, [lastPoint, smoothPoints, calculateVelocity]);
 
   // Debounced resize handler to prevent ResizeObserver loop
   const debouncedResize = useCallback((entries: ResizeObserverEntry[]) => {
@@ -317,15 +325,6 @@ export default function SignatureDrawingCanvas({
       }
     };
   }, [debouncedResize]);
-
-  // Calculate velocity between two points
-  const calculateVelocity = (p1: Point, p2: Point): number => {
-    const dx = p2.x - p1.x;
-    const dy = p2.y - p1.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    const timeDiff = p2.timestamp - p1.timestamp;
-    return distance / (timeDiff || 1);
-  };
 
   const getPointFromEvent = (e: MouseEvent | TouchEvent): Point | null => {
     const canvas = canvasRef.current;
