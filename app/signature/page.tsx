@@ -9,16 +9,45 @@ export default function SignaturePage() {
   const [color, setColor] = useState('#000000');
   const [thickness, setThickness] = useState(2);
 
-  const handleDownload = () => {
+  const handleDownload = (format: 'png' | 'jpg') => {
     if (!signatureData) return;
 
     try {
-      const link = document.createElement('a');
-      link.download = 'signature.png';
-      link.href = signatureData;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // Create a temporary canvas to handle the conversion
+      const tempCanvas = document.createElement('canvas');
+      const tempCtx = tempCanvas.getContext('2d');
+      const img = new Image();
+
+      img.onload = () => {
+        // Set canvas size to match the image
+        tempCanvas.width = img.width;
+        tempCanvas.height = img.height;
+
+        if (tempCtx) {
+          if (format === 'jpg') {
+            // Fill with white background for JPG
+            tempCtx.fillStyle = '#FFFFFF';
+            tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+          }
+
+          // Draw the signature
+          tempCtx.drawImage(img, 0, 0);
+
+          // Convert to desired format
+          const mimeType = format === 'png' ? 'image/png' : 'image/jpeg';
+          const dataUrl = tempCanvas.toDataURL(mimeType, 1.0);
+
+          // Create download link
+          const link = document.createElement('a');
+          link.download = `signature.${format}`;
+          link.href = dataUrl;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      };
+
+      img.src = signatureData;
     } catch (error) {
       console.error('Error downloading signature:', error);
     }
@@ -82,14 +111,29 @@ export default function SignaturePage() {
               </div>
             </ErrorBoundary>
 
-            {/* Download Button */}
-            <button 
-              className="w-full bg-blue-500 text-white py-2 lg:py-3 rounded-lg hover:bg-blue-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed text-sm lg:text-base"
-              onClick={handleDownload}
-              disabled={!signatureData}
-            >
-              Download Signature
-            </button>
+            {/* Download Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4">
+              <button 
+                className="flex-1 bg-blue-500 text-white py-2 lg:py-3 rounded-lg hover:bg-blue-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed text-sm lg:text-base flex items-center justify-center gap-2"
+                onClick={() => handleDownload('png')}
+                disabled={!signatureData}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Download PNG (Transparent)
+              </button>
+              <button 
+                className="flex-1 bg-green-500 text-white py-2 lg:py-3 rounded-lg hover:bg-green-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed text-sm lg:text-base flex items-center justify-center gap-2"
+                onClick={() => handleDownload('jpg')}
+                disabled={!signatureData}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Download JPG (White Background)
+              </button>
+            </div>
           </div>
         </div>
 

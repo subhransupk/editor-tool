@@ -32,10 +32,69 @@ export default function SignatureDrawingCanvas({
   const [points, setPoints] = useState<Point[]>([]);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const currentStrokeId = useRef(0);
-  const smoothingFactorRef = useRef(0.5);
+  const smoothingFactorRef = useRef(0.65);
   const isDrawingRef = useRef(false);
+  const lastPointsRef = useRef<Point[]>([]);
 
-  // Redraw canvas with current points
+  // Enhanced smoothing function using Bezier curves
+  const smoothPoints = (points: Point[]): Point[] => {
+    if (points.length < 3) return points;
+
+    const smoothed: Point[] = [];
+    
+    // Keep first point
+    smoothed.push(points[0]);
+
+    // Process points in groups of 3
+    for (let i = 1; i < points.length - 1; i++) {
+      const prev = points[i - 1];
+      const current = points[i];
+      const next = points[i + 1];
+
+      // Calculate control points for Bezier curve
+      const controlPoint1 = {
+        x: current.x + (prev.x - current.x) * smoothingFactorRef.current,
+        y: current.y + (prev.y - current.y) * smoothingFactorRef.current,
+        pressure: current.pressure,
+        timestamp: current.timestamp,
+        strokeId: current.strokeId
+      };
+
+      const controlPoint2 = {
+        x: current.x + (next.x - current.x) * smoothingFactorRef.current,
+        y: current.y + (next.y - current.y) * smoothingFactorRef.current,
+        pressure: current.pressure,
+        timestamp: current.timestamp,
+        strokeId: current.strokeId
+      };
+
+      // Add interpolated points
+      const steps = 5;
+      for (let t = 0; t < 1; t += 1/steps) {
+        const point = {
+          x: Math.pow(1-t, 3) * prev.x + 
+             3 * Math.pow(1-t, 2) * t * controlPoint1.x + 
+             3 * (1-t) * Math.pow(t, 2) * controlPoint2.x + 
+             Math.pow(t, 3) * next.x,
+          y: Math.pow(1-t, 3) * prev.y + 
+             3 * Math.pow(1-t, 2) * t * controlPoint1.y + 
+             3 * (1-t) * Math.pow(t, 2) * controlPoint2.y + 
+             Math.pow(t, 3) * next.y,
+          pressure: current.pressure,
+          timestamp: current.timestamp,
+          strokeId: current.strokeId
+        };
+        smoothed.push(point);
+      }
+    }
+
+    // Keep last point
+    smoothed.push(points[points.length - 1]);
+
+    return smoothed;
+  };
+
+  // Enhanced redraw function
   const redrawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -44,10 +103,7 @@ export default function SignatureDrawingCanvas({
     if (!ctx) return;
 
     try {
-      // Store the current transformation matrix
       ctx.save();
-      
-      // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       // Set canvas properties
@@ -61,53 +117,36 @@ export default function SignatureDrawingCanvas({
       const scaleY = canvas.height / rect.height;
       ctx.scale(scaleX, scaleY);
 
-      // Draw all points
+      // Draw all points with enhanced smoothing
       if (points.length > 1) {
         let currentStroke = points[0].strokeId;
-        ctx.beginPath();
+        let strokePoints: Point[] = [];
 
-        for (let i = 1; i < points.length; i++) {
-          const p1 = points[i - 1];
-          const p2 = points[i];
+        for (let i = 0; i < points.length; i++) {
+          const point = points[i];
           
-          if (p2.strokeId !== currentStroke) {
-            ctx.stroke();
-            ctx.beginPath();
-            currentStroke = p2.strokeId;
-            continue;
-          }
-          
-          const velocity = calculateVelocity(p1, p2);
-          const velocityFactor = Math.max(0.2, 1 - velocity * 0.05);
-          const pressureFactor = (p1.pressure + p2.pressure) / 2;
-          const dynamicLineWidth = lineWidth * pressureFactor * velocityFactor;
-          
-          ctx.lineWidth = dynamicLineWidth;
-          ctx.beginPath();
-          ctx.moveTo(p1.x, p1.y);
-
-          if (i < points.length - 1 && points[i + 1].strokeId === currentStroke) {
-            const p3 = points[i + 1];
-            const controlPoint1 = getSmoothPoint(p1, p2, smoothingFactorRef.current);
-            const controlPoint2 = getSmoothPoint(p3, p2, smoothingFactorRef.current);
+          if (point.strokeId !== currentStroke) {
+            // Process and draw current stroke
+            const smoothedPoints = smoothPoints(strokePoints);
+            drawStroke(ctx, smoothedPoints, lineWidth);
             
-            ctx.bezierCurveTo(
-              controlPoint1.x, controlPoint1.y,
-              controlPoint2.x, controlPoint2.y,
-              p2.x, p2.y
-            );
+            // Start new stroke
+            currentStroke = point.strokeId;
+            strokePoints = [point];
           } else {
-            ctx.lineTo(p2.x, p2.y);
+            strokePoints.push(point);
           }
-          
-          ctx.stroke();
+        }
+
+        // Draw last stroke
+        if (strokePoints.length > 0) {
+          const smoothedPoints = smoothPoints(strokePoints);
+          drawStroke(ctx, smoothedPoints, lineWidth);
         }
       }
 
-      // Restore the transformation matrix
       ctx.restore();
 
-      // Update signature data if needed
       if (onChange && points.length > 0) {
         onChange(canvas.toDataURL());
       }
@@ -115,6 +154,34 @@ export default function SignatureDrawingCanvas({
       console.error('Error drawing on canvas:', error);
     }
   }, [points, lineColor, lineWidth, onChange]);
+
+  // Helper function to draw a single stroke
+  const drawStroke = (ctx: CanvasRenderingContext2D, points: Point[], baseWidth: number) => {
+    if (points.length < 2) return;
+
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+
+    for (let i = 1; i < points.length; i++) {
+      const p1 = points[i - 1];
+      const p2 = points[i];
+      
+      const velocity = calculateVelocity(p1, p2);
+      const velocityFactor = Math.max(0.2, 1 - velocity * 0.05);
+      const pressureFactor = (p1.pressure + p2.pressure) / 2;
+      ctx.lineWidth = baseWidth * pressureFactor * velocityFactor;
+
+      if (i < points.length - 1) {
+        const xc = (p1.x + p2.x) / 2;
+        const yc = (p1.y + p2.y) / 2;
+        ctx.quadraticCurveTo(p1.x, p1.y, xc, yc);
+      } else {
+        ctx.lineTo(p2.x, p2.y);
+      }
+    }
+    
+    ctx.stroke();
+  };
 
   // Debounced resize handler to prevent ResizeObserver loop
   const debouncedResize = useCallback((entries: ResizeObserverEntry[]) => {
@@ -186,17 +253,6 @@ export default function SignatureDrawingCanvas({
     return distance / (timeDiff || 1);
   };
 
-  // Get smoothed point between two points
-  const getSmoothPoint = (p1: Point, p2: Point, factor: number): Point => {
-    return {
-      x: p1.x + (p2.x - p1.x) * factor,
-      y: p1.y + (p2.y - p1.y) * factor,
-      pressure: p1.pressure + (p2.pressure - p1.pressure) * factor,
-      timestamp: p1.timestamp + (p2.timestamp - p1.timestamp) * factor,
-      strokeId: p1.strokeId,
-    };
-  };
-
   const getPointFromEvent = (e: MouseEvent | TouchEvent): Point | null => {
     const canvas = canvasRef.current;
     if (!canvas) return null;
@@ -238,6 +294,7 @@ export default function SignatureDrawingCanvas({
     }
   }, []);
 
+  // Enhanced handle move function
   const handleMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     try {
       e.preventDefault();
@@ -248,15 +305,19 @@ export default function SignatureDrawingCanvas({
 
       point.velocity = calculateVelocity(lastPoint, point);
 
-      const interpolatedPoints: Point[] = [];
-      const steps = 5;
-      
-      for (let i = 1; i <= steps; i++) {
-        interpolatedPoints.push(getSmoothPoint(lastPoint, point, i / steps));
+      // Store points for smoothing
+      lastPointsRef.current.push(point);
+      if (lastPointsRef.current.length > 8) {
+        lastPointsRef.current.shift();
       }
 
-      setPoints(prev => [...prev, ...interpolatedPoints]);
-      setLastPoint(point);
+      // Apply real-time smoothing
+      const smoothedPoints = smoothPoints(lastPointsRef.current);
+      if (smoothedPoints.length > 0) {
+        const lastSmoothedPoint = smoothedPoints[smoothedPoints.length - 1];
+        setPoints(prev => [...prev, lastSmoothedPoint]);
+        setLastPoint(lastSmoothedPoint);
+      }
     } catch (error) {
       console.error('Error during drawing:', error);
     }
