@@ -54,46 +54,6 @@ const createFlowingCurve = (points: Point[], style: LetterStyle, letterHeight: n
   return path;
 };
 
-const getConnectingPoint = (
-  letter: string,
-  startX: number,
-  baseY: number,
-  width: number,
-  height: number
-): Point => {
-  // Determine where the next letter should connect based on the current letter
-  const connectingPoints: { [key: string]: Point } = {
-    'a': { x: startX + width * 0.9, y: baseY },
-    'b': { x: startX + width * 0.8, y: baseY },
-    'c': { x: startX + width * 0.95, y: baseY },
-    'd': { x: startX + width * 0.9, y: baseY },
-    'e': { x: startX + width * 0.9, y: baseY },
-    'f': { x: startX + width * 0.7, y: baseY + height * 0.4 },
-    'g': { x: startX + width * 0.8, y: baseY + height * 0.4 },
-    'h': { x: startX + width * 0.9, y: baseY },
-    'i': { x: startX + width * 0.6, y: baseY },
-    'j': { x: startX + width * 0.6, y: baseY + height * 0.4 },
-    'k': { x: startX + width * 0.9, y: baseY },
-    'l': { x: startX + width * 0.6, y: baseY },
-    'm': { x: startX + width * 1.1, y: baseY },
-    'n': { x: startX + width * 0.9, y: baseY },
-    'o': { x: startX + width * 0.9, y: baseY },
-    'p': { x: startX + width * 0.8, y: baseY + height * 0.4 },
-    'q': { x: startX + width * 0.9, y: baseY + height * 0.4 },
-    'r': { x: startX + width * 0.8, y: baseY },
-    's': { x: startX + width * 0.9, y: baseY },
-    't': { x: startX + width * 0.7, y: baseY },
-    'u': { x: startX + width * 0.9, y: baseY },
-    'v': { x: startX + width * 0.9, y: baseY },
-    'w': { x: startX + width * 1.1, y: baseY },
-    'x': { x: startX + width * 0.9, y: baseY },
-    'y': { x: startX + width * 0.8, y: baseY + height * 0.4 },
-    'z': { x: startX + width * 0.9, y: baseY }
-  };
-
-  return connectingPoints[letter.toLowerCase()] || { x: startX + width * 0.9, y: baseY };
-};
-
 // Generate points for a flowing signature
 export const generateSignaturePoints = (
   text: string,
