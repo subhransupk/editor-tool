@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import SignatureDrawingCanvas from './components/SignatureDrawingCanvas';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 export default function SignaturePage() {
   const [signatureData, setSignatureData] = useState<string>('');
@@ -11,33 +12,37 @@ export default function SignaturePage() {
   const handleDownload = () => {
     if (!signatureData) return;
 
-    const link = document.createElement('a');
-    link.download = 'signature.png';
-    link.href = signatureData;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      const link = document.createElement('a');
+      link.download = 'signature.png';
+      link.href = signatureData;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Error downloading signature:', error);
+    }
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Main Container */}
-      <div className="flex justify-between">
+      <div className="flex flex-col lg:flex-row justify-between">
         {/* Left Sidebar - Ad Space */}
-        <div className="w-64 min-h-screen bg-white p-4 border-r">
+        <div className="hidden lg:block w-64 min-h-screen bg-white p-4 border-r">
           <div className="h-[600px] border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center">
             <span className="text-gray-400">Ad Space</span>
           </div>
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 p-8">
+        <div className="flex-1 p-4 lg:p-8">
           <div className="max-w-3xl mx-auto">
-            <h1 className="text-3xl font-bold text-gray-800 mb-8">Signature Generator</h1>
+            <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 mb-4 lg:mb-8">Signature Generator</h1>
             
             {/* Customization Options */}
-            <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-              <h2 className="text-xl font-semibold mb-4">Customize</h2>
+            <div className="bg-white p-4 lg:p-6 rounded-lg shadow-md mb-4 lg:mb-6">
+              <h2 className="text-lg lg:text-xl font-semibold mb-4">Customize</h2>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Line Thickness</label>
@@ -64,18 +69,22 @@ export default function SignaturePage() {
             </div>
 
             {/* Drawing Canvas */}
-            <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-              <h2 className="text-xl font-semibold mb-4">Draw Your Signature</h2>
-              <SignatureDrawingCanvas
-                onChange={setSignatureData}
-                lineColor={color}
-                lineWidth={thickness}
-              />
-            </div>
+            <ErrorBoundary>
+              <div className="bg-white p-4 lg:p-6 rounded-lg shadow-md mb-4 lg:mb-6">
+                <h2 className="text-lg lg:text-xl font-semibold mb-4">Draw Your Signature</h2>
+                <div className="w-full h-[200px] lg:h-[250px]">
+                  <SignatureDrawingCanvas
+                    onChange={setSignatureData}
+                    lineColor={color}
+                    lineWidth={thickness}
+                  />
+                </div>
+              </div>
+            </ErrorBoundary>
 
             {/* Download Button */}
             <button 
-              className="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+              className="w-full bg-blue-500 text-white py-2 lg:py-3 rounded-lg hover:bg-blue-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed text-sm lg:text-base"
               onClick={handleDownload}
               disabled={!signatureData}
             >
@@ -85,7 +94,7 @@ export default function SignaturePage() {
         </div>
 
         {/* Right Sidebar - Ad Space */}
-        <div className="w-64 min-h-screen bg-white p-4 border-l">
+        <div className="hidden lg:block w-64 min-h-screen bg-white p-4 border-l">
           <div className="h-[600px] border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center">
             <span className="text-gray-400">Ad Space</span>
           </div>
